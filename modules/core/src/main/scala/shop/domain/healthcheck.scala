@@ -8,7 +8,7 @@ import derevo.circe.magnolia.encoder
 import derevo.cats.eqv
 
 object healthcheck {
-    
+
   @derive(eqv)
   sealed trait Status
   object Status {

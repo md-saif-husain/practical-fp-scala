@@ -5,9 +5,9 @@ import squants.market.Money
 import shop.domain.checkout._
 
 object payment {
-    case class Payment (
-        id: UserId,
-        total: Money,
-        card: Card
-    )
+  case class Payment(
+      id: UserId,
+      total: Money,
+      card: Card
+  )
 }
