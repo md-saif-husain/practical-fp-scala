@@ -1,5 +1,30 @@
-*.class
-*.log
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
+project/boot
+target
+.ensime
+.ensime_lucene
+.ensime_cache
+.ensime_snapshot
+ensime.sbt
+TAGS
+\#*#
+*~
+.#*
+.lib
+.history
+.*.swp
+.idea
+.idea/*
+.idea_modules
+.DS_Store
+.sbtrc
+*.sublime-project
+*.sublime-workspace
+tests.iml
+# Auto-copied by sbt-microsites
+docs/src/main/tut/contributing.md
+.ignore
+result*
+project/metals.sbt
+.bloop/
+.metals/
+project/.bloop/
