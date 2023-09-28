@@ -7,7 +7,9 @@ import io.circe.Encoder
 import cats.kernel.Monoid
 import cats.kernel.Eq
 import cats.Show
+import cats.syntax.all._
 import squants.market.Currency
+import dev.profunktor.auth.jwt.JwtToken
 
 package object domain extends OrphanInstances
 
@@ -24,5 +26,12 @@ trait OrphanInstances {
   implicit val moneyEq: Eq[Money] = Eq.and(Eq.by(_.amount), Eq.by(_.currency))
 
   implicit val moneyShow: Show[Money] = Show.fromToString
+
+  implicit val tokenEq: Eq[JwtToken] = Eq.by(_.value)
+
+  implicit val tokenShow: Show[JwtToken] = Show[String].contramap[JwtToken](_.value)
+
+  implicit val tokenEncoder: Encoder[JwtToken] =
+    Encoder.forProduct1("access_token")(_.value)
 
 }
