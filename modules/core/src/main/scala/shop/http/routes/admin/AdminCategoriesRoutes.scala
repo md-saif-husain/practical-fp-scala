@@ -19,7 +19,7 @@ import io.circe.syntax._
 final case class AdminCategoriesRoutes[F[_]: JsonDecoder: MonadThrow](
     categories: Categories[F]
 ) extends Http4sDsl[F] {
-  private[routes] val pathPrefix = "/categories"
+  private[admin] val pathPrefix = "/categories"
 
   private val httpRoutes: AuthedRoutes[AdminUser, F] =
     AuthedRoutes.of {
