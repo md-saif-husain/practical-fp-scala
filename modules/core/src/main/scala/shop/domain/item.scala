@@ -40,7 +40,9 @@ object item {
       price: Money,
       brand: Brand,
       category: Category
-  )
+  ) {
+    def cart(q: Quantity): CartItem = CartItem(this, q)
+  }
 
   // ----- Create item ------
 
