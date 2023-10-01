@@ -12,43 +12,41 @@ import skunk.implicits._
 import dev.profunktor.redis4cats.RedisCommands
 
 trait HealthCheck[F[_]] {
-    def status: F[AppStatus]
+  def status: F[AppStatus]
 }
 
 object HealthCheck {
-    def make[F[_]: Temporal](
-        postgres: Resource[F, Session[F]],
-        redis: RedisCommands[F, String, String]
-    ): HealthCheck[F] = 
-        new HealthCheck[F] {
+  def make[F[_]: Temporal](
+      postgres: Resource[F, Session[F]],
+      redis: RedisCommands[F, String, String]
+  ): HealthCheck[F] =
+    new HealthCheck[F] {
 
-            val q: Query[Void, Int] = 
-                sql"SELECT pid FROM pg_stat_activity".query(int4)
+      val q: Query[Void, Int] =
+        sql"SELECT pid FROM pg_stat_activity".query(int4)
 
-            val redisHealth: F[RedisStatus] = 
-                redis.ping
-                     .map(_.nonEmpty)
-                     .timeout(1.second)
-                     .map(Status._Bool.reverseGet)
-                     .orElse(Status.Unreachable.pure[F].widen)
-                     .map(RedisStatus.apply)
+      val redisHealth: F[RedisStatus] =
+        redis.ping
+          .map(_.nonEmpty)
+          .timeout(1.second)
+          .map(Status._Bool.reverseGet)
+          .orElse(Status.Unreachable.pure[F].widen)
+          .map(RedisStatus.apply)
 
-            val postgresHealth: F[PostgresStatus] = 
-                postgres
-                   .use(_.execute(q))
-                   .map(_.nonEmpty)
-                   .timeout(1.second)
-                   .map(Status._Bool.reverseGet)
-                   .orElse(Status.Unreachable.pure[F].widen)
-                   .map(PostgresStatus.apply)
-                         
+      val postgresHealth: F[PostgresStatus] =
+        postgres
+          .use(_.execute(q))
+          .map(_.nonEmpty)
+          .timeout(1.second)
+          .map(Status._Bool.reverseGet)
+          .orElse(Status.Unreachable.pure[F].widen)
+          .map(PostgresStatus.apply)
 
-            override def status: F[AppStatus] = 
-                (
-                    redisHealth,
-                    postgresHealth
-                ).parMapN(AppStatus.apply)
+      override def status: F[AppStatus] =
+        (
+          redisHealth,
+          postgresHealth
+        ).parMapN(AppStatus.apply)
 
-            
-        }
+    }
 }
