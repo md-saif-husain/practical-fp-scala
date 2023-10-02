@@ -21,4 +21,8 @@ object types {
   @newtype
   case class JwtAccessTokenKeyConfig(secret: NonEmptyString)
 
+  @derive(configDecoder, show)
+  @newtype
+  case class PasswordSalt(secret: NonEmptyString)
+
 }
