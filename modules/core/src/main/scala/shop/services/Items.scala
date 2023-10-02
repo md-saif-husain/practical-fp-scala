@@ -42,7 +42,7 @@ object Items {
       }
 
       def create(item: CreateItem): F[ItemId] = postgres.use { session: Session[F] =>
-        session.prepare(createItem).use { cmd =>
+        session.prepare(insertItem).use { cmd =>
           ID.make[F, ItemId].flatMap { id =>
             cmd.execute(id ~ item).as(id)
           }
@@ -95,7 +95,7 @@ private object ItemSQL {
       WHERE i.uuid = $itemId
     """.query(decoder)
 
-  val createItem: Command[ItemId ~ CreateItem] =
+  val insertItem: Command[ItemId ~ CreateItem] =
     sql"""
       INSERT INTO items
       VALUES (
