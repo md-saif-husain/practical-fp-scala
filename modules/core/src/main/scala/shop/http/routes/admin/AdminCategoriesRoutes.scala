@@ -15,7 +15,6 @@ import org.http4s.dsl.Http4sDsl
 import io.circe.JsonObject
 import io.circe.syntax._
 
-
 final case class AdminCategoriesRoutes[F[_]: JsonDecoder: MonadThrow](
     categories: Categories[F]
 ) extends Http4sDsl[F] {

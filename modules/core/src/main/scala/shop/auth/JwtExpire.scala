@@ -7,7 +7,6 @@ import cats.syntax.all._
 import cats.effect.Sync
 import shop.effects.JwtClock
 
-
 trait JwtExpire[F[_]] {
   def expiresIn(claim: JwtClaim, exp: TokenExpiration): F[JwtClaim]
 }

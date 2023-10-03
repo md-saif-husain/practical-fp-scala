@@ -16,7 +16,7 @@ import cats.syntax.all._
 import org.typelevel.log4cats.Logger
 import retry._
 import squants.market.Money
-import scala.concurrent.duration._ 
+import scala.concurrent.duration._
 
 final case class Checkout[F[_]: Background: Logger: MonadThrow: Retry](
     payments: PaymentClient[F],
@@ -41,18 +41,17 @@ final case class Checkout[F[_]: Background: Logger: MonadThrow: Retry](
     val action = Retry[F].retry(policy, Retriable.Orders)(orders.create(userId, paymentId, items, total)).adaptError {
       case e => OrderError(Option(e.getMessage).getOrElse("Unknown"))
     }
-    def bgAction(fa: F[OrderId]): F[OrderId] = 
-        fa.onError {
-            case _ => 
-                Logger[F].error(
-                    s"Failed to create order for Payment: ${paymentId.show}. Rescheduling as a background action"
-                ) *> 
-                  Background[F].schedule(bgAction(fa), 1.hour)
+    def bgAction(fa: F[OrderId]): F[OrderId] =
+      fa.onError {
+        case _ =>
+          Logger[F].error(
+            s"Failed to create order for Payment: ${paymentId.show}. Rescheduling as a background action"
+          ) *>
+            Background[F].schedule(bgAction(fa), 1.hour)
 
-        }
+      }
     bgAction(action)
   }
-    
 
   def process(userId: UserId, card: Card): F[OrderId] =
     cart.get(userId).flatMap {

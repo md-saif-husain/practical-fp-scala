@@ -31,7 +31,7 @@ object item {
   @derive(decoder, encoder, eqv, show)
   @newtype
   case class ItemDescription(value: String)
-  
+
   @derive(decoder, encoder, eqv, show)
   case class Item(
       uuid: ItemId,

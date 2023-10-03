@@ -27,7 +27,7 @@ object Retry {
               Logger[F].error(s"Giving up on ${retriable.show} after $totalRetries retries.")
           }
 
-        retryingOnAllErrors[A](policy, onError)(fa)  
+        retryingOnAllErrors[A](policy, onError)(fa)
 
       }
 
