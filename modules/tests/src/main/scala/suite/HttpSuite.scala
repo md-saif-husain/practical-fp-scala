@@ -13,7 +13,7 @@ import scala.util.control.NoStackTrace
 trait HttpSuite extends SimpleIOSuite with Checkers {
 
   case object DummyError extends NoStackTrace
-    
+
   def expectHttpBodyAndStatus[A: Encoder](
       routes: HttpRoutes[IO],
       req: Request[IO]
@@ -33,9 +33,15 @@ trait HttpSuite extends SimpleIOSuite with Checkers {
       case None => IO.pure(failure("route not found"))
     }
 
-  def expectHttpFailure(routes: HttpRoutes[IO], req: Request[IO]): IO[Expectations] = 
+  def expectHttpFailure(routes: HttpRoutes[IO], req: Request[IO]): IO[Expectations] =
     routes.run(req).value.attempt.map {
-        case Left(_) => success
-        case Right(_) => failure("Expected a failure")
+      case Left(_)  => success
+      case Right(_) => failure("Expected a failure")
+    }
+
+  def expectHttpStatus(routes: HttpRoutes[IO], req: Request[IO])(expectedStatus: Status): IO[Expectations] =
+    routes.run(req).value.map {
+      case Some(resp) => expect.same(resp.status, expectedStatus)
+      case None       => failure("route not found")
     }
 }
