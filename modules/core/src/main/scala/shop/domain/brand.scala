@@ -45,4 +45,6 @@ object brand {
   @derive(decoder, encoder)
   case class InvalidBrand(value: String) extends NoStackTrace
 
+  object DummyError extends NoStackTrace
+
 }

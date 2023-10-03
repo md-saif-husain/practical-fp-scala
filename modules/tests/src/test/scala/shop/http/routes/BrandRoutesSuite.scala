@@ -1,10 +1,9 @@
 package shop.http.routes
 
-
 import shop.domain.ID
 import shop.domain.brand._
 import shop.services.Brands
-import shop.generator._ 
+import shop.generator._
 
 import cats.effect._
 import org.http4s.Method._
@@ -15,21 +14,33 @@ import org.scalacheck.Gen
 import suite.HttpSuite
 
 object BrandRoutesSuite extends HttpSuite {
-    def databrands(brands: List[Brand]) = new TestBrands {
-        override def findAll: IO[List[Brand]] = IO.pure(brands)
-    }
+  def databrands(brands: List[Brand]) = new TestBrands {
+    override def findAll: IO[List[Brand]] = IO.pure(brands)
+  }
 
-    test("Get brands succeed"){
-        forall(Gen.listOf(brandGen)) { b =>
-            val req = GET(uri"/brands")
-            val routes = BrandRoutes[IO](databrands(b)).routes
-            expectHttpBodyAndStatus(routes, req)(b, Status.Ok)
+  def failingbrands(brands: List[Brand]) = new TestBrands {
+    override def findAll: IO[List[Brand]] = IO.raiseError(DummyError) *> IO.pure(brands)
+  }
 
-        }
-    }
+  test("Get brands succeed") {
+    forall(Gen.listOf(brandGen)) { b =>
+      val req    = GET(uri"/brands")
+      val routes = BrandRoutes[IO](databrands(b)).routes
+      expectHttpBodyAndStatus(routes, req)(b, Status.Ok)
 
-    protected class TestBrands extends Brands[IO] {
-        def create(name: BrandName): IO[BrandId] = ???
-        def findAll: IO[List[Brand]] = ???            
     }
+  }
+
+  test("Get brands fails") {
+    forall(Gen.listOf(brandGen)) { b =>
+      val req    = GET(uri"/brands")
+      val routes = BrandRoutes[IO](failingbrands(b)).routes
+      expectHttpFailure(routes, req)
+    }
+  }
+
+  protected class TestBrands extends Brands[IO] {
+    def create(name: BrandName): IO[BrandId] = ???
+    def findAll: IO[List[Brand]]             = ???
+  }
 }
