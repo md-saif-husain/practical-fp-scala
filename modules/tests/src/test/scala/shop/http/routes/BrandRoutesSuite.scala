@@ -1,6 +1,5 @@
 package shop.http.routes
 
-import shop.domain.ID
 import shop.domain.brand._
 import shop.services.Brands
 import shop.generator._

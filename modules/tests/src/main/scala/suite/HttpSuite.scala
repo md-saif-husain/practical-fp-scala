@@ -8,8 +8,12 @@ import org.http4s._
 import org.http4s.circe._
 import weaver._
 import weaver.scalacheck.Checkers
+import scala.util.control.NoStackTrace
 
 trait HttpSuite extends SimpleIOSuite with Checkers {
+
+  case object DummyError extends NoStackTrace
+    
   def expectHttpBodyAndStatus[A: Encoder](
       routes: HttpRoutes[IO],
       req: Request[IO]
