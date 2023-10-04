@@ -24,4 +24,7 @@ object types {
   @newtype
   case class PasswordSalt(secret: NonEmptyString)
 
+  @newtype case class PaymentURI(value: NonEmptyString)
+  @newtype case class PaymentConfig(uri: PaymentURI)
+
 }
