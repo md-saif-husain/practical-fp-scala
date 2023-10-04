@@ -45,6 +45,21 @@ object CartRoutesSuite extends HttpSuite {
     }
   }
 
+  test("Delete carts succeed") {
+    val gen = for {
+      u  <- commonUserGen
+      ct <- cartTotalGen
+      id <- Gen.uuid
+    } yield (u, ct, id)
+    forall(gen) {
+      case (u, ct, id) =>
+        // FIXME: id should be from ItemdIdGen
+        val req    = DELETE(uri"/carts" /id.toString()) 
+        val routes = CartRoutes[IO](dataCart(ct)).routes(authMiddleware(u))
+        expectHttpStatus(routes, req)(Status.NoContent)
+    }
+  }
+
   test("POST add item to shopping cart succeed") {
     val gen = for {
       u <- commonUserGen
@@ -56,6 +71,20 @@ object CartRoutesSuite extends HttpSuite {
         val req    = POST(c, uri"/carts")
         val routes = CartRoutes[IO](new TestShoppingCart).routes(authMiddleware(user))
         expectHttpStatus(routes, req)(Status.Created)
+    }
+  }
+
+  test("Put update item to shopping cart succeed") {
+    val gen = for {
+      u <- commonUserGen
+      c <- cartGen
+    } yield u -> c
+
+    forall(gen) {
+      case (user, c) =>
+        val req    = PUT(c, uri"/carts")
+        val routes = CartRoutes[IO](new TestShoppingCart).routes(authMiddleware(user))
+        expectHttpStatus(routes, req)(Status.NoContent)
     }
   }
 
