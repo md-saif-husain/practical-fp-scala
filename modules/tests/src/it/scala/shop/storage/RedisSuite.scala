@@ -42,7 +42,41 @@ object RedisSuite extends ResourceSuite {
   val jwtClaim    = JwtClaim("test")
   val userJwtAuth = UserJwtAuth(JwtAuth.hmac("bar", JwtAlgorithm.HS256))
 
-  
+  test("ShoppingCarts") { redis =>
+    val gen = for {
+      uid <- userIdGen
+      it1 <- itemGen
+      it2 <- itemGen
+      q1  <- quantityGen
+      q2  <- quantityGen
+    } yield (uid, it1, it2, q1, q2)
+
+    forall(gen) {
+      case (uid, it1, it2, q1, q2) =>
+        Ref.of[IO, Map[ItemId, Item]](Map(it1.uuid -> it1, it2.uuid -> it2)).flatMap { ref =>
+          val items = new TestItems(ref)
+          val c     = ShoppingCart.make[IO](items, redis, Exp)
+          for {
+            x <- c.get(uid)
+            _ <- c.add(uid, it1.uuid, q1)
+            _ <- c.add(uid, it2.uuid, q1)
+            y <- c.get(uid)
+            _ <- c.removeItem(uid, it1.uuid)
+            z <- c.get(uid)
+            _ <- c.update(uid, Cart(Map(it2.uuid -> q2)))
+            w <- c.get(uid)
+            _ <- c.delete(uid)
+            v <- c.get(uid)
+          } yield expect.all(
+            x.items.isEmpty,
+            y.items.size === 2,
+            z.items.size === 1,
+            v.items.isEmpty,
+            w.items.headOption.fold(false)(_.quantity === q2)
+          )
+        }
+    }
+  }
 
   protected class TestItems(ref: Ref[IO, Map[ItemId, Item]]) extends Items[IO] {
 
