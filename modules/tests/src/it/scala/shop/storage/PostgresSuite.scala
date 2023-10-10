@@ -1,10 +1,11 @@
 package shop.storage
 
+import shop.domain._
 import shop.domain.brand._
 import shop.domain.category._
 import shop.domain.item._
-import suite.ResourceSuite
 import shop.generator._
+import shop.services._
 
 import cats.data.NonEmptyList
 import cats.effect._
@@ -15,11 +16,7 @@ import natchez.Trace.Implicits.noop
 import org.scalacheck.Gen
 import skunk._
 import skunk.implicits._
-import shop.services.Brands
-import shop.services.Categories
-import shop.domain.brand
-import shop.services.Items
-import shop.services.Users
+import suite.ResourceSuite
 
 object PostgresSuite extends ResourceSuite {
   type Res = Resource[IO, Session[IO]]
@@ -125,5 +122,38 @@ object PostgresSuite extends ResourceSuite {
           z.isLeft
         )
     }
+  }
+  test("Orders") { postgres =>
+    val itemGen = 
+      Gen
+        .nonEmptyListOf(cartItemGen)
+        .map(NonEmptyList.fromListUnsafe)
+
+    val gen = for {
+      oid <- orderIdGen
+      pid <- paymentIdGen
+      un <- userNameGen
+      pw <- encryptedPasswordGen
+      it <- itemGen
+      pr <- moneyGen
+    } yield (oid, pid, un, pw, it, pr )    
+
+    forall(gen) {
+      case (oid, pid, un, pw, items, price ) =>
+        val o = Orders.make[IO](postgres)
+        val u = Users.make[IO](postgres)
+        
+        for {
+          d <- u.create(un, pw)
+          x <- o.findBy(d)
+          y <- o.get(d, oid)
+          i <- o.create(d, pid, items, price)
+        } yield expect.all(
+          x.isEmpty,
+          y.isEmpty,
+          i.value.version === 4
+        )
+    }
+
   }
 }
