@@ -1,8 +1,8 @@
 package shop.storage
 
-import shop.domain.brand._ 
-import shop.domain.category._ 
-import shop.domain.item._ 
+import shop.domain.brand._
+import shop.domain.category._
+import shop.domain.item._
 import suite.ResourceSuite
 import shop.generator._
 
@@ -19,6 +19,7 @@ import shop.services.Brands
 import shop.services.Categories
 import shop.domain.brand
 import shop.services.Items
+import shop.services.Users
 
 object PostgresSuite extends ResourceSuite {
   type Res = Resource[IO, Session[IO]]
@@ -68,18 +69,17 @@ object PostgresSuite extends ResourceSuite {
         x.isEmpty,
         y.count(
           _.name === category.name
-          ) === 1,
-        z.isLeft  
+        ) === 1,
+        z.isLeft
       )
     }
   }
 
   test("Items") { postgres =>
     forall(itemGen) { item =>
-
       def newItem(
-        bid: Option[BrandId],
-        cid: Option[CategoryId]
+          bid: Option[BrandId],
+          cid: Option[CategoryId]
       ) = CreateItem(
         name = item.name,
         description = item.description,
@@ -104,6 +104,26 @@ object PostgresSuite extends ResourceSuite {
         x.isEmpty,
         y.count(_.name === item.name) === 1
       )
+    }
+  }
+
+  test("Users") { postgres =>
+    val gen = for {
+      u <- userNameGen
+      p <- encryptedPasswordGen
+    } yield u -> p
+
+    forall(gen) {
+      case (username, password) =>
+        val u = Users.make[IO](postgres)
+        for {
+          d <- u.create(username, password)
+          x <- u.find(username)
+          z <- u.create(username, password).attempt
+        } yield expect.all(
+          x.count(_.id === d) === 1,
+          z.isLeft
+        )
     }
   }
 }
