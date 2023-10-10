@@ -13,6 +13,7 @@ import org.scalacheck.Gen
 import skunk._
 import skunk.implicits._
 import shop.services.Brands
+import shop.services.Categories
 
 object PostgresSuite extends ResourceSuite {
   type Res = Resource[IO, Session[IO]]
@@ -48,7 +49,23 @@ object PostgresSuite extends ResourceSuite {
         z <- b.create(brand.name).attempt
       } yield expect.all(x.isEmpty, y.count(_.name === brand.name) === 1, z.isLeft)
     }
-
   }
 
+  test("Category") { postgres =>
+    forall(categoryGen) { category =>
+      val c = Categories.make[IO](postgres)
+      for {
+        x <- c.findAll
+        _ <- c.create(category.name)
+        y <- c.findAll
+        z <- c.create(category.name).attempt
+      } yield expect.all(
+        x.isEmpty,
+        y.count(
+          _.name === category.name
+          ) === 1,
+        z.isLeft  
+      )
+    }
+  }
 }
