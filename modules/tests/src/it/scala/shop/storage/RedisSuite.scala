@@ -25,6 +25,8 @@ import eu.timepit.refined.cats._
 import org.typelevel.log4cats.noop.NoOpLogger
 import pdi.jwt._
 import suite.ResourceSuite
+import suite.ResourceSuite
+import java.util.UUID
 
 object RedisSuite extends ResourceSuite {
   implicit val logger = NoOpLogger[IO]
@@ -78,6 +80,42 @@ object RedisSuite extends ResourceSuite {
     }
   }
 
+  test("Authentication") { redis =>
+    val gen = for {
+      un1 <- userNameGen
+      un2 <- userNameGen
+      pw  <- passwordGen
+    } yield (un1, un2, pw)
+
+    forall(gen) {
+      case (un1, un2, pw) =>
+        for {
+          t <- JwtExpire.make[IO].map(Tokens.make[IO](_, tokenConfig, tokenExp))
+          c <- Crypto.make[IO](PasswordSalt("test"))
+          a <- Auth.make(tokenExp, t, new TestUsers(un2), redis, c)
+          u <- UserAuth.common[IO](redis)
+          x <- u.findUser(JwtToken("invalid"))(jwtClaim)
+          y <- a.login(un1, pw).attempt
+          j <- a.newUser(un1, pw)
+          e <- jwtDecode[IO](j, userJwtAuth.value).attempt
+          k <- a.login(un2, pw).attempt // InvalidPassword
+          w <- u.findUser(j)(jwtClaim)
+          s <- redis.get(j.value)
+          _ <- a.logout(j, un1)
+          z <- redis.get(j.value)
+        } yield expect.all(
+          x.isEmpty,
+          y == Left(UserNotFound(un1)),
+          e.isRight,
+          k == Left(InvalidPassword(un2)),
+          w.fold(false)(_.value.name === un1),
+          s.nonEmpty,
+          z.isEmpty
+        )
+    }
+
+  }
+
   protected class TestItems(ref: Ref[IO, Map[ItemId, Item]]) extends Items[IO] {
 
     def findAll: IO[List[Item]] = ref.get.map(_.values.toList)
@@ -111,5 +149,22 @@ object RedisSuite extends ResourceSuite {
           x.get(item.id)
             .fold(x)(i => x.updated(item.id, i.copy(price = item.price)))
       )
+  }
+
+  protected class TestUsers(un: UserName) extends Users[IO] {
+
+    def find(username: UserName): IO[Option[UserWithPassword]] = IO.pure {
+      (username === un)
+        .guard[Option]
+        .as(
+          UserWithPassword(
+            UserId(UUID.randomUUID()),
+            un,
+            EncryptedPassword("foo")
+          )
+        )
+    }
+
+    def create(username: UserName, password: EncryptedPassword): IO[UserId] = ID.make[IO, UserId]
   }
 }
