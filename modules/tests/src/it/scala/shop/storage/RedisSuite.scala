@@ -1,5 +1,7 @@
 package shop.storage
 
+import java.util.UUID
+
 import scala.concurrent.duration._
 
 import shop.auth._
@@ -25,17 +27,16 @@ import eu.timepit.refined.cats._
 import org.typelevel.log4cats.noop.NoOpLogger
 import pdi.jwt._
 import suite.ResourceSuite
-import suite.ResourceSuite
-import java.util.UUID
 
 object RedisSuite extends ResourceSuite {
+
   implicit val logger = NoOpLogger[IO]
 
   type Res = RedisCommands[IO, String, String]
 
-  def sharedResource: Resource[IO, Res] =
+  override def sharedResource: Resource[IO, Res] =
     Redis[IO]
-      .utf8("redis: //localhost")
+      .utf8("redis://localhost")
       .beforeAll(_.flushAll)
 
   val Exp         = ShoppingCartExpiration(30.seconds)
@@ -44,7 +45,7 @@ object RedisSuite extends ResourceSuite {
   val jwtClaim    = JwtClaim("test")
   val userJwtAuth = UserJwtAuth(JwtAuth.hmac("bar", JwtAlgorithm.HS256))
 
-  test("ShoppingCarts") { redis =>
+  test("Shopping Cart") { redis =>
     val gen = for {
       uid <- userIdGen
       it1 <- itemGen
@@ -92,10 +93,10 @@ object RedisSuite extends ResourceSuite {
         for {
           t <- JwtExpire.make[IO].map(Tokens.make[IO](_, tokenConfig, tokenExp))
           c <- Crypto.make[IO](PasswordSalt("test"))
-          a <- Auth.make(tokenExp, t, new TestUsers(un2), redis, c)
-          u <- UserAuth.common[IO](redis)
+          a = Auth.make(tokenExp, t, new TestUsers(un2), redis, c)
+          u = UserAuth.common[IO](redis)
           x <- u.findUser(JwtToken("invalid"))(jwtClaim)
-          y <- a.login(un1, pw).attempt
+          y <- a.login(un1, pw).attempt // UserNotFound
           j <- a.newUser(un1, pw)
           e <- jwtDecode[IO](j, userJwtAuth.value).attempt
           k <- a.login(un2, pw).attempt // InvalidPassword
@@ -113,58 +114,34 @@ object RedisSuite extends ResourceSuite {
           z.isEmpty
         )
     }
-
   }
 
-  protected class TestItems(ref: Ref[IO, Map[ItemId, Item]]) extends Items[IO] {
+}
 
-    def findAll: IO[List[Item]] = ref.get.map(_.values.toList)
-
-    def findBy(brand: BrandName): IO[List[Item]] =
-      ref.get.map {
-        _.values.filter(_.brand.name === brand).toList
-      }
-
-    def findById(itemId: ItemId): IO[Option[Item]] = ref.get.map(_.get(itemId))
-
-    def create(item: CreateItem): IO[ItemId] =
-      ID.make[IO, ItemId].flatTap { id =>
-        val brand    = Brand(item.brandId, BrandName("foo"))
-        val category = Category(item.categoryId, CategoryName("foo"))
-        val newItem = Item(
-          id,
-          item.name,
-          item.description,
-          item.price,
-          brand,
-          category
-        )
-
-        ref.update(_.updated(id, newItem))
-      }
-
-    def update(item: UpdateItem): IO[Unit] =
-      ref.update(
-        x =>
-          x.get(item.id)
-            .fold(x)(i => x.updated(item.id, i.copy(price = item.price)))
-      )
+protected class TestUsers(un: UserName) extends Users[IO] {
+  def find(username: UserName): IO[Option[UserWithPassword]] = IO.pure {
+    (username === un)
+      .guard[Option]
+      .as(UserWithPassword(UserId(UUID.randomUUID), un, EncryptedPassword("foo")))
   }
+  def create(username: UserName, password: EncryptedPassword): IO[UserId] =
+    ID.make[IO, UserId]
+}
 
-  protected class TestUsers(un: UserName) extends Users[IO] {
-
-    def find(username: UserName): IO[Option[UserWithPassword]] = IO.pure {
-      (username === un)
-        .guard[Option]
-        .as(
-          UserWithPassword(
-            UserId(UUID.randomUUID()),
-            un,
-            EncryptedPassword("foo")
-          )
-        )
+protected class TestItems(ref: Ref[IO, Map[ItemId, Item]]) extends Items[IO] {
+  def findAll: IO[List[Item]] =
+    ref.get.map(_.values.toList)
+  def findBy(brand: BrandName): IO[List[Item]] =
+    ref.get.map(_.values.filter(_.brand.name === brand).toList)
+  def findById(itemId: ItemId): IO[Option[Item]] =
+    ref.get.map(_.get(itemId))
+  def create(item: CreateItem): IO[ItemId] =
+    ID.make[IO, ItemId].flatTap { id =>
+      val brand    = Brand(item.brandId, BrandName("foo"))
+      val category = Category(item.categoryId, CategoryName("foo"))
+      val newItem  = Item(id, item.name, item.description, item.price, brand, category)
+      ref.update(_.updated(id, newItem))
     }
-
-    def create(username: UserName, password: EncryptedPassword): IO[UserId] = ID.make[IO, UserId]
-  }
+  def update(item: UpdateItem): IO[Unit] =
+    ref.update(x => x.get(item.id).fold(x)(i => x.updated(item.id, i.copy(price = item.price))))
 }
